@@ -1,6 +1,5 @@
 package com.example.lab1_javacfg.model;
 
-import com.example.lab1_javacfg.model.cfg.CFGConnection;
 import com.example.lab1_javacfg.model.cfg.ControlFlowGraph;
 import com.example.lab1_javacfg.model.cfg.CFGNode;
 import com.github.javaparser.ParseProblemException;
@@ -42,26 +41,27 @@ public class JavaCFGBuilder {
     }
 
     private static ControlFlowGraph nestedBlockProcessing(List<Node> block) {
-        return getNestedBlockCFG(block, null, null);
+        return getNestedBlockCFG(block, null);
     }
 
-    private static ControlFlowGraph nestedBlockProcessing(List<Node> block, ArrayList<CFGNode> breakNodes, ArrayList<CFGNode> continueNodes) {
-        return getNestedBlockCFG(block, breakNodes, continueNodes);
+    private static ControlFlowGraph nestedBlockProcessing(List<Node> block, ControlFlowGraph superCFG) {
+        return getNestedBlockCFG(block, superCFG);
     }
 
-    private static ControlFlowGraph getNestedBlockCFG(List<Node> block, ArrayList<CFGNode> breakNodes, ArrayList<CFGNode> continueNodes) {
+    private static ControlFlowGraph getNestedBlockCFG(List<Node> block, ControlFlowGraph superCFG) {
         ControlFlowGraph cfg = new ControlFlowGraph();
+        boolean break_or_continue = false;
         for (Node node: block) {
+            if (break_or_continue) break;
             switch (node.getClass().getSimpleName()) {
-                case "BlockStmt" -> {
+                case "BlockStmt" ->
                     cfg.plus(nestedBlockProcessing(node.getChildNodes()));
-                }
                 case "ExpressionStmt" ->
                     cfg.plus(expressionProcessing(node.getChildNodes()));
                 case "UnaryExpr" ->
                     cfg.plus(expressionProcessing(new ArrayList<>(List.of(node))));
                 case "IfStmt" ->
-                    cfg.plus(ifProcessing((IfStmt) node, breakNodes, continueNodes));
+                    cfg.plus(ifProcessing((IfStmt) node));
                 case "ReturnStmt" ->
                     cfg.plus(returnProcessing((ReturnStmt) node));
                 case "ForStmt" ->
@@ -69,20 +69,35 @@ public class JavaCFGBuilder {
                 case "WhileStmt" ->
                     cfg.plus(whileProcessing((WhileStmt) node));
                 case "BreakStmt" -> {
-                    ControlFlowGraph breakCFG = new ControlFlowGraph();
-                    CFGNode breakNode = breakCFG.addNode("break", "box");
-                    if (cfg.plus(breakCFG) && breakNodes != null)
-                        breakNodes.add(breakNode);
+                    if (superCFG != null) {
+                        CFGNode previousNode = cfg.getLastNode();
+                        if (previousNode == null) { // example: while (a == 1) { break; }
+                            previousNode = superCFG.getNodes().get(0);
+                            superCFG.addBreakNode(previousNode);
+                            superCFG.removeLeave(previousNode);
+                        } else { // example: while (a == 1) { b = 2; break; }
+                            cfg.addBreakNode(previousNode);
+                            cfg.clearLeaves();
+                        }
+                        break_or_continue = true;
+                    }
                 }
                 case "ContinueStmt" -> {
-                    ControlFlowGraph continueCFG = new ControlFlowGraph();
-                    CFGNode continueNode = continueCFG.addNode("continue", "box");
-                    if (cfg.plus(continueCFG) && continueNodes != null)
-                        continueNodes.add(continueNode);
+                    if (superCFG != null) {
+                        CFGNode previousNode = cfg.getLastNode();
+                        if (previousNode == null) { // example: while (a == 1) { continue; }
+                            previousNode = superCFG.getNodes().get(0);
+                            superCFG.addContinueNode(previousNode);
+                            superCFG.removeLeave(previousNode);
+                        } else { // example: while (a == 1) { b = 2; continue; }
+                            cfg.addContinueNode(previousNode);
+                            cfg.clearLeaves();
+                        }
+                        break_or_continue = true;
+                    }
                 }
-                case "SwitchStmt" -> {
+                case "SwitchStmt" ->
                     cfg.plus(switchProcessing((SwitchStmt) node));
-                }
             }
         }
         return cfg;
@@ -100,7 +115,7 @@ public class JavaCFGBuilder {
                         cfg.addConnection(nodes.get(i), nodes.get(i + 1), "");
                     cfg.addLeave(nodes.get(nodes.size() - 1));
                 }
-                case "AssignExpr", "UnaryExpr" -> {
+                case "AssignExpr", "UnaryExpr", "MethodCallExpr" -> {
                     ControlFlowGraph nestedCFG = new ControlFlowGraph();
                     CFGNode node = nestedCFG.addNode(item.toString(), "box");
                     nestedCFG.addLeave(node);
@@ -111,8 +126,7 @@ public class JavaCFGBuilder {
         return cfg;
     }
 
-    private static ControlFlowGraph ifProcessing(
-            IfStmt ifStmt, ArrayList<CFGNode> breakNodes, ArrayList<CFGNode> continueNodes) {
+    private static ControlFlowGraph ifProcessing(IfStmt ifStmt) {
         ControlFlowGraph cfg = new ControlFlowGraph();
         String condition = ifStmt.getCondition().toString();
         CFGNode conditionNode = cfg.addNode(condition, "diamond");
@@ -136,21 +150,19 @@ public class JavaCFGBuilder {
             elseBlock = null;
         }
 
-        ArrayList<CFGNode> elseBlockLeaves = new ArrayList<>();
-        if (elseBlock == null) {
-            elseBlockLeaves.add(conditionNode);
-        } else {
-            ControlFlowGraph elseBlockCFG = nestedBlockProcessing(elseBlock, breakNodes, continueNodes);
-            cfg.plus(elseBlockCFG, "red");
-            elseBlockLeaves = new ArrayList<>(cfg.getLeaves());
+        ControlFlowGraph thenBlockCFG = nestedBlockProcessing(thenBlock, cfg);
+        cfg.plus(thenBlockCFG, "green");
 
+        if (elseBlock == null) {
+            cfg.addLeave(conditionNode);
+        } else { // there is else-branch
+            ArrayList<CFGNode> thenBlockLeaves = new ArrayList<>(cfg.getLeaves());
             cfg.clearLeaves();
             cfg.addLeave(conditionNode);
+            ControlFlowGraph elseBlockCFG = nestedBlockProcessing(elseBlock, cfg);
+            cfg.plus(elseBlockCFG, "red");
+            cfg.addLeaves(thenBlockLeaves);
         }
-
-        ControlFlowGraph thenBlockCFG = nestedBlockProcessing(thenBlock, breakNodes, continueNodes);
-        cfg.plus(thenBlockCFG, "green");
-        cfg.addLeaves(elseBlockLeaves);
 
         return cfg;
     }
@@ -186,44 +198,25 @@ public class JavaCFGBuilder {
             block.add(forStmt.getBody());
         }
 
-        ArrayList<CFGNode> breakNodes = new ArrayList<>();
-        ArrayList<CFGNode> continueNodes = new ArrayList<>();
-
-        loopBodyCFG.plus(nestedBlockProcessing(block, breakNodes, continueNodes), "green");
-
-        // finding "continue"-leaves
-        // example: for(int i=1;i<5;i++) {continue;}
-        if (!loopBodyCFG.getNodes().isEmpty() && loopBodyCFG.getLeaves().isEmpty()) {
-            for (CFGNode node: loopBodyCFG.getNodes()) {
-                if (node.getLabel().equals("continue")) {
-                    boolean isLeave = true;
-                    for (CFGConnection connection: loopBodyCFG.getConnections()) {
-                        if (connection.getFirst().equals(node)) {
-                            isLeave = false;
-                            break;
-                        }
-                    }
-                    if (isLeave) {
-                        loopBodyCFG.addLeave(node);
-                        continueNodes.remove(node);
-                    }
-                }
-            }
-        }
+        loopBodyCFG.plus(nestedBlockProcessing(block, loopBodyCFG), "green");
 
         // FOR-update block
         ControlFlowGraph loopUpdateCFG = expressionProcessing(
                 new ArrayList(Arrays.asList(forStmt.getUpdate().toArray())));
 
         loopBodyCFG.plus(loopUpdateCFG);
+        if (loopBodyCFG.getNodes().isEmpty()) return loopCFG;
 
+        // looping
         for(CFGNode node: loopBodyCFG.getLeaves()) {
             loopBodyCFG.addConnection(node, loopBodyCFG.getNodes().get(0), "");
         }
 
         loopBodyCFG.clearLeaves();
-        if (compareNode != null) loopBodyCFG.addLeave(compareNode);
-        loopBodyCFG.addLeaves(breakNodes); // "break" processing
+        loopBodyCFG.addLeaves(loopBodyCFG.getBreakNodes()); // "break" processing
+        if (compareNode != null)
+            if (!loopBodyCFG.getLeaves().contains(compareNode))
+                    loopBodyCFG.addLeave(compareNode);
 
         // "continue" processing
         CFGNode loopStartWith;
@@ -232,7 +225,7 @@ public class JavaCFGBuilder {
         } else {
             loopStartWith = loopUpdateCFG.getNodes().get(0);
         }
-        for(CFGNode node: continueNodes) {
+        for(CFGNode node: loopBodyCFG.getContinueNodes()) {
             loopBodyCFG.addConnection(node, loopStartWith, "");
         }
 
@@ -253,22 +246,23 @@ public class JavaCFGBuilder {
             block.add(whileStmt.getBody());
         }
 
-        ArrayList<CFGNode> breakNodes = new ArrayList<>();
-        ArrayList<CFGNode> continueNodes = new ArrayList<>();
+        cfg.plus(nestedBlockProcessing(block, cfg), "green");
 
-        cfg.plus(nestedBlockProcessing(block, breakNodes, continueNodes), "green");
-
+        // looping
         for(CFGNode node: cfg.getLeaves()) {
             cfg.addConnection(node, cfg.getNodes().get(0), "");
         }
-
         cfg.clearLeaves();
-        cfg.addLeave(conditionNode);
-        cfg.addLeaves(breakNodes);
 
-        for(CFGNode node: continueNodes) {
+        for(CFGNode node: cfg.getContinueNodes()) {
             cfg.addConnection(node, cfg.getNodes().get(0), "");
         }
+        cfg.clearContinueNodes();
+
+        cfg.addLeaves(cfg.getBreakNodes());
+        cfg.clearBreakNodes();
+        if (!cfg.getLeaves().contains(conditionNode))
+            cfg.addLeave(conditionNode);
 
         return cfg;
     }

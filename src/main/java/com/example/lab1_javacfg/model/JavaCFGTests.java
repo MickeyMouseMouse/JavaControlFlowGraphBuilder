@@ -41,14 +41,14 @@ public class JavaCFGTests {
                             if (q)
                                 continue;
                             else
-                                value = otherFunction();
+                                otherFunction();
                 		}
                     }
                 }
                 """);
 
         AssertJUnit.assertEquals(
-                "digraph{1[label=\"int fib(int n)\",shape=\"oval\"]2[label=\"i < 10\",shape=\"diamond\"]3[label=\"i == 5\",shape=\"diamond\"]4[label=\"break\",shape=\"box\"]5[label=\"i++\",shape=\"box\"]6[label=\"q\",shape=\"diamond\"]7[label=\"value = otherFunction()\",shape=\"box\"]8[label=\"continue\",shape=\"box\"]3->4[color=\"red\"]3->5[color=\"green\"]2->3[color=\"green\"]5->2[color=\"\"]6->7[color=\"red\"]6->8[color=\"green\"]2->6[color=\"black\"]4->6[color=\"black\"]7->2[color=\"\"]8->2[color=\"\"]1->2[color=\"black\"]}",
+                "digraph{1[label=\"int fib(int n)\",shape=\"oval\"]2[label=\"i < 10\",shape=\"diamond\"]3[label=\"i == 5\",shape=\"diamond\"]4[label=\"i++\",shape=\"box\"]5[label=\"q\",shape=\"diamond\"]6[label=\"otherFunction()\",shape=\"box\"]3->4[color=\"green\"]2->3[color=\"green\"]4->2[color=\"\"]5->6[color=\"red\"]3->5[color=\"black\"]2->5[color=\"black\"]6->2[color=\"\"]5->2[color=\"\"]1->2[color=\"black\"]}",
                 cfgDescription);
     }
 
@@ -78,7 +78,7 @@ public class JavaCFGTests {
                 """);
 
         AssertJUnit.assertEquals(
-                "digraph{1[label=\"int myFun(int n)\",shape=\"oval\"]2[label=\"i = 1\",shape=\"box\"]3[label=\"j = 0\",shape=\"box\"]4[label=\"i < 10\",shape=\"diamond\"]5[label=\"b == 5\",shape=\"diamond\"]6[label=\"m = six(x)\",shape=\"box\"]7[label=\"break\",shape=\"box\"]8[label=\"q = 5\",shape=\"box\"]9[label=\"w = 6.6\",shape=\"box\"]10[label=\"e = \\\"rty\\\"\",shape=\"box\"]11[label=\"test == 8\",shape=\"diamond\"]12[label=\"continue\",shape=\"box\"]13[label=\"break\",shape=\"box\"]14[label=\"i++\",shape=\"box\"]15[label=\"j--\",shape=\"box\"]16[label=\"end = true\",shape=\"box\"]2->3[color=\"\"]6->7[color=\"black\"]5->6[color=\"red\"]8->9[color=\"black\"]9->10[color=\"black\"]5->8[color=\"green\"]11->12[color=\"red\"]11->13[color=\"green\"]10->11[color=\"black\"]4->5[color=\"green\"]14->15[color=\"black\"]12->14[color=\"black\"]15->4[color=\"\"]3->4[color=\"black\"]4->16[color=\"black\"]7->16[color=\"black\"]13->16[color=\"black\"]1->2[color=\"black\"]}",
+                "digraph{1[label=\"int myFun(int n)\",shape=\"oval\"]2[label=\"i = 1\",shape=\"box\"]3[label=\"j = 0\",shape=\"box\"]4[label=\"i < 10\",shape=\"diamond\"]5[label=\"b == 5\",shape=\"diamond\"]6[label=\"q = 5\",shape=\"box\"]7[label=\"w = 6.6\",shape=\"box\"]8[label=\"e = \\\"rty\\\"\",shape=\"box\"]9[label=\"m = six(x)\",shape=\"box\"]10[label=\"test == 8\",shape=\"diamond\"]11[label=\"i++\",shape=\"box\"]12[label=\"j--\",shape=\"box\"]13[label=\"end = true\",shape=\"box\"]2->3[color=\"\"]6->7[color=\"black\"]7->8[color=\"black\"]5->6[color=\"green\"]5->9[color=\"red\"]8->10[color=\"black\"]4->5[color=\"green\"]11->12[color=\"black\"]12->4[color=\"\"]10->11[color=\"\"]3->4[color=\"black\"]9->13[color=\"black\"]10->13[color=\"black\"]4->13[color=\"black\"]1->2[color=\"black\"]}",
                 cfgDescription);
     }
 

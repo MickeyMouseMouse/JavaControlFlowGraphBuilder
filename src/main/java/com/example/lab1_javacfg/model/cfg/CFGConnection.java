@@ -11,12 +11,9 @@ public class CFGConnection {
         this.edgeColor = edgeColor;
     }
 
-    public CFGNode getFirst() { return first; }
-
-    public CFGNode getSecond() { return second; }
-
     @Override
     public String toString() {
         return first.getIndex() + "->" + second.getIndex() + "[color=\"" + edgeColor + "\"]";
     }
+
 }

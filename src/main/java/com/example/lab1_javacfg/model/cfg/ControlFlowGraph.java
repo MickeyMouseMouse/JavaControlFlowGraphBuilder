@@ -10,6 +10,8 @@ public class ControlFlowGraph {
     private final ArrayList<CFGConnection> connections = new ArrayList<>();
 
     private final ArrayList<CFGNode> leaves = new ArrayList<>();
+    private final ArrayList<CFGNode> breakNodes = new ArrayList<>();
+    private final ArrayList<CFGNode> continueNodes = new ArrayList<>();
 
     public ControlFlowGraph() {}
 
@@ -17,7 +19,18 @@ public class ControlFlowGraph {
 
     public ArrayList<CFGNode> getNodes() { return nodes; }
 
+    public CFGNode getLastNode() {
+        if (nodes.isEmpty())
+            return null;
+        else
+            return nodes.get(nodes.size() - 1);
+    }
+
     public ArrayList<CFGConnection> getConnections() { return connections; }
+
+    public ArrayList<CFGNode> getBreakNodes() { return breakNodes; }
+
+    public ArrayList<CFGNode> getContinueNodes() { return continueNodes; }
 
     public CFGNode addNode(String label, String shape) {
        CFGNode newNode = new CFGNode(++nodeCounter, label, shape);
@@ -46,28 +59,41 @@ public class ControlFlowGraph {
 
     public void clearLeaves() { this.leaves.clear(); }
 
+    public void removeLeave(CFGNode node) { this.leaves.remove(node); }
+
     public void addLeave(CFGNode node) { leaves.add(node); }
 
     public void addLeaves(ArrayList<CFGNode> nodes) { leaves.addAll(nodes); }
+
+    public void clearBreakNodes() { this.breakNodes.clear(); }
+
+    public void addBreakNode(CFGNode node) { breakNodes.add(node); }
+
+    public void addBreakNodes(ArrayList<CFGNode> nodes) { breakNodes.addAll(nodes); }
+
+    public void clearContinueNodes() { this.continueNodes.clear(); }
+
+    public void addContinueNode(CFGNode node) { continueNodes.add(node); }
+
+    public void addContinueNodes(ArrayList<CFGNode> nodes) { continueNodes.addAll(nodes); }
 
     private void updateNodeIndexes(int startWith) {
         for (CFGNode node: nodes)
             node.setIndex(startWith++);
     }
 
-    public boolean plus(ControlFlowGraph other) {
-        return plusCFG(other, "black");
+    public void plus(ControlFlowGraph other) {
+        plusCFG(other, "black");
     }
 
-    public boolean plus(ControlFlowGraph other, String edgeColor) {
-        return plusCFG(other, edgeColor);
+    public void plus(ControlFlowGraph other, String edgeColor) {
+        plusCFG(other, edgeColor);
     }
 
-    private boolean plusCFG(ControlFlowGraph other, String edgeColor) {
-        // there are nodes, but no leaves (example: {a=1; return; b=2;} )
-        if (!this.nodes.isEmpty() && this.leaves.isEmpty()) return false;
-        // nothing to connect
-        if (other.getNodes().isEmpty()) return false;
+    private void plusCFG(ControlFlowGraph other, String edgeColor) {
+        if (!this.getNodes().isEmpty() && this.getLeaves().isEmpty() &&
+                this.getContinueNodes().isEmpty()) return; // no leaves
+        if (other.getNodes().isEmpty()) return; // nothing to connect (no nodes)
 
         other.updateNodeIndexes(this.nodeCounter + 1);
         this.nodes.addAll(other.getNodes());
@@ -76,7 +102,8 @@ public class ControlFlowGraph {
             this.addConnection(leave, this.nodes.get(this.nodeCounter), edgeColor);
         this.nodeCounter += other.getNodeCounter();
         this.clearLeaves();
-        this.getLeaves().addAll(other.getLeaves());
-        return true;
+        this.addLeaves(other.getLeaves());
+        this.addBreakNodes(other.getBreakNodes());
+        this.addContinueNodes(other.getContinueNodes());
     }
 }
