@@ -86,6 +86,28 @@ public class JavaCFGTests {
     public void test4() {
         String cfgDescription = JavaCFGBuilder.getCFGDescription("""
                 public class MyClass {
+                	public int myFun(int n) {
+                		while (1<5) {
+                			for (;;) {
+                				if (w==2) continue;
+                				if (w==3) break;
+                			}
+                			a=6;
+                		}
+                		a=5;
+                	}
+                }
+                """);
+
+        AssertJUnit.assertEquals(
+                "digraph{1[label=\"int myFun(int n)\",shape=\"oval\"]2[label=\"1 < 5\",shape=\"diamond\"]3[label=\"w == 2\",shape=\"diamond\"]4[label=\"w == 3\",shape=\"diamond\"]5[label=\"a = 6\",shape=\"box\"]6[label=\"a = 5\",shape=\"box\"]3->4[color=\"black\"]4->3[color=\"\"]3->3[color=\"\"]4->5[color=\"black\"]2->3[color=\"green\"]5->2[color=\"\"]2->6[color=\"black\"]1->2[color=\"black\"]}",
+                cfgDescription);
+    }
+
+    @Test
+    public void test5() {
+        String cfgDescription = JavaCFGBuilder.getCFGDescription("""
+                public class MyClass {
                     int fib(int n) {
                         switch(str) {
                             case "1" ->

@@ -200,6 +200,11 @@ public class JavaCFGBuilder {
 
         loopBodyCFG.plus(nestedBlockProcessing(block, loopBodyCFG), "green");
 
+        // remove leaves that are "continue"
+        for (CFGNode node: loopBodyCFG.getContinueNodes()) {
+            loopBodyCFG.getLeaves().remove(node);
+        }
+
         // FOR-update block
         ControlFlowGraph loopUpdateCFG = expressionProcessing(
                 new ArrayList(Arrays.asList(forStmt.getUpdate().toArray())));
@@ -211,12 +216,7 @@ public class JavaCFGBuilder {
         for(CFGNode node: loopBodyCFG.getLeaves()) {
             loopBodyCFG.addConnection(node, loopBodyCFG.getNodes().get(0), "");
         }
-
         loopBodyCFG.clearLeaves();
-        loopBodyCFG.addLeaves(loopBodyCFG.getBreakNodes()); // "break" processing
-        if (compareNode != null)
-            if (!loopBodyCFG.getLeaves().contains(compareNode))
-                    loopBodyCFG.addLeave(compareNode);
 
         // "continue" processing
         CFGNode loopStartWith;
@@ -228,6 +228,14 @@ public class JavaCFGBuilder {
         for(CFGNode node: loopBodyCFG.getContinueNodes()) {
             loopBodyCFG.addConnection(node, loopStartWith, "");
         }
+        loopBodyCFG.clearContinueNodes();
+
+        // "break" processing
+        loopBodyCFG.addLeaves(loopBodyCFG.getBreakNodes());
+        loopBodyCFG.clearBreakNodes();
+        if (compareNode != null)
+            if (!loopBodyCFG.getLeaves().contains(compareNode))
+                loopBodyCFG.addLeave(compareNode);
 
         loopCFG.plus(loopBodyCFG);
         return loopCFG;
@@ -248,17 +256,24 @@ public class JavaCFGBuilder {
 
         cfg.plus(nestedBlockProcessing(block, cfg), "green");
 
+        // remove leaves that are "continue"
+        for (CFGNode node: cfg.getContinueNodes()) {
+            cfg.getLeaves().remove(node);
+        }
+
         // looping
         for(CFGNode node: cfg.getLeaves()) {
             cfg.addConnection(node, cfg.getNodes().get(0), "");
         }
         cfg.clearLeaves();
 
+        // "continue" processing
         for(CFGNode node: cfg.getContinueNodes()) {
             cfg.addConnection(node, cfg.getNodes().get(0), "");
         }
         cfg.clearContinueNodes();
 
+        // "break" processing
         cfg.addLeaves(cfg.getBreakNodes());
         cfg.clearBreakNodes();
         if (!cfg.getLeaves().contains(conditionNode))
